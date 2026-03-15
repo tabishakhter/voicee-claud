@@ -77,7 +77,6 @@ h1,h2,h3{font-family:'Syne',sans-serif;}
 </style>
 </head>
 <body>
-
 <div class="app-header">
   <div class="app-logo">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C10.3 2 9 3.3 9 5v6c0 1.7 1.3 3 3 3s3-1.3 3-3V5c0-1.7-1.3-3-3-3z" fill="white"/><path d="M19 11c0 3.9-3.1 7-7 7s-7-3.1-7-7H3c0 4.9 3.7 8.9 8.5 9.4V22h1v-1.6C18.3 19.9 22 15.9 22 11h-3z" fill="white"/></svg>
@@ -87,18 +86,16 @@ h1,h2,h3{font-family:'Syne',sans-serif;}
     <div class="app-subtitle">Speak your tasks, AI plans your day</div>
   </div>
 </div>
-
 <div class="tabs">
   <button class="tab active" onclick="switchTab('plan')">Plan Today</button>
   <button class="tab" onclick="switchTab('history')">History</button>
 </div>
-
 <div class="page active" id="page-plan">
   <div class="voice-section">
     <div class="voice-label">What do you need to do today?</div>
     <div class="input-row">
       <textarea class="task-textarea" id="taskInput" placeholder="e.g. Study maths 2 hours high priority, go to gym medium, call client at 4pm urgent..."></textarea>
-      <button class="btn-mic" id="micBtn" title="Tap to speak">
+      <button class="btn-mic" id="micBtn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C10.3 2 9 3.3 9 5v6c0 1.7 1.3 3 3 3s3-1.3 3-3V5c0-1.7-1.3-3-3-3z" fill="currentColor"/><path d="M19 11c0 3.9-3.1 7-7 7s-7-3.1-7-7H3c0 4.9 3.7 8.9 8.5 9.4V22h1v-1.6C18.3 19.9 22 15.9 22 11h-3z" fill="currentColor"/></svg>
       </button>
     </div>
@@ -110,7 +107,6 @@ h1,h2,h3{font-family:'Syne',sans-serif;}
     <div class="loading-bar" id="loadingBar"><div class="loading-fill"></div></div>
     <div class="error-msg" id="errorMsg"></div>
   </div>
-
   <div id="scheduleSection" style="display:none;">
     <div class="section-title">Your AI-Planned Schedule <span class="date-badge" id="dateBadge"></span></div>
     <div class="summary-row" id="summaryRow"></div>
@@ -122,7 +118,6 @@ h1,h2,h3{font-family:'Syne',sans-serif;}
     <button class="reset-btn" id="resetBtn">Plan a new day</button>
   </div>
 </div>
-
 <div class="page" id="page-history">
   <div id="historyList"></div>
   <div id="historyDetail" style="display:none;">
@@ -135,9 +130,8 @@ h1,h2,h3{font-family:'Syne',sans-serif;}
     <div class="timeline" id="detailTimeline"></div>
   </div>
 </div>
-
 <script>
-const GEMINI_KEY = 'AIzaSyBVmGKanWTdda_P-9YFzIqmk-iA6jI05FQ';
+const GEMINI_KEY='AIzaSyBVmGKanWTdda_P-9YFzIqmk-iA6jI05FQ';
 const taskInput=document.getElementById('taskInput');
 const planBtn=document.getElementById('planBtn');
 const micBtn=document.getElementById('micBtn');
@@ -151,8 +145,7 @@ const dateBadge=document.getElementById('dateBadge');
 const notifyBtn=document.getElementById('notifyBtn');
 const resetBtn=document.getElementById('resetBtn');
 let notificationsEnabled=false,scheduledNotifs=[];
-const now=new Date();
-dateBadge.textContent=now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+dateBadge.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -165,12 +158,29 @@ if('webkitSpeechRecognition' in window||'SpeechRecognition' in window){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   recognition=new SR();
   recognition.continuous=false;recognition.interimResults=true;recognition.lang='en-IN';
-  recognition.onstart=()=>{isRecording=true;micBtn.classList.add('recording');micHint.textContent='Listening... speak your tasks now';};
+  recognition.onstart=()=>{isRecording=true;micBtn.classList.add('recording');micHint.textContent='Listening... speak now';};
   recognition.onresult=(e)=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;taskInput.value=t;};
-  recognition.onend=()=>{isRecording=false;micBtn.classList.remove('recording');micHint.textContent='Tap mic to speak, or type your tasks above';};
+  recognition.onend=()=>{isRecording=false;micBtn.classList.remove('recording');micHint.textContent='Tap mic to speak, or type above';};
   recognition.onerror=()=>{isRecording=false;micBtn.classList.remove('recording');micHint.textContent='Mic error — try typing instead';};
 }else{micHint.textContent='Voice not supported — please type';micBtn.style.opacity='0.4';micBtn.disabled=true;}
 micBtn.addEventListener('click',()=>{if(!recognition)return;if(isRecording)recognition.stop();else{taskInput.value='';recognition.start();}});
+
+async function callGemini(prompt){
+  const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      contents:[{parts:[{text:prompt}]}],
+      generationConfig:{temperature:0.7,maxOutputTokens:1500,responseMimeType:'application/json'}
+    })
+  });
+  if(!res.ok){const e=await res.text();throw new Error('API error: '+res.status+' '+e);}
+  const data=await res.json();
+  const text=data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!text)throw new Error('Empty response from AI. Response: '+JSON.stringify(data));
+  return text;
+}
+
 planBtn.addEventListener('click',async()=>{
   const input=taskInput.value.trim();
   if(!input){showError('Please tell me what tasks you have today!');return;}
@@ -179,28 +189,37 @@ planBtn.addEventListener('click',async()=>{
   planBtn.innerHTML='Planning...';
   loadingBar.classList.add('active');
   const currentHour=new Date().getHours();
-  const prompt='You are a smart personal day planner. Plan the user\'s optimal day schedule.\nCurrent time: '+currentHour+':00\nUser\'s tasks: "'+input+'"\nRules: high/urgent priority first or at specified time, realistic gaps, do not schedule past midnight, 8am-10pm window if no times given.\nRespond ONLY in this exact JSON, no other text, no markdown:\n{"tasks":[{"name":"task name","time":"HH:MM","duration":60,"priority":"high|medium|low","reason":"one short sentence"}],"totalHours":5.5,"tip":"one short motivational tip"}';
+  const prompt='You are a smart personal day planner. Plan the optimal day schedule for the user.\nCurrent time: '+currentHour+':00\nUser tasks: "'+input+'"\nRules:\n- Schedule high/urgent priority tasks first, or at their specified time\n- Add realistic time gaps between tasks\n- Keep tasks between 8am-10pm if no specific time given\n- Do not schedule past midnight\nReturn a JSON object with this exact structure:\n{"tasks":[{"name":"task name","time":"HH:MM","duration":60,"priority":"high","reason":"why scheduled at this time"}],"totalHours":5.5,"tip":"one motivational tip for the day"}';
   try{
-    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7,maxOutputTokens:1000}})
-    });
-    const data=await res.json();
-    const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-    const clean=text.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(clean);
+    const text=await callGemini(prompt);
+    let parsed;
+    try{
+      parsed=JSON.parse(text);
+    }catch(e){
+      const match=text.match(/\{[\s\S]*\}/);
+      if(!match)throw new Error('Could not find JSON in response: '+text.substring(0,200));
+      parsed=JSON.parse(match[0]);
+    }
+    if(!parsed.tasks||!Array.isArray(parsed.tasks))throw new Error('Invalid schedule format received');
     saveToHistory(input,parsed);
     renderSchedule(parsed);
-  }catch(e){showError('Could not connect to AI. Check your connection and try again. Error: '+e.message);}
-  finally{planBtn.disabled=false;planBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg> Plan My Day with AI';loadingBar.classList.remove('active');}
+  }catch(e){
+    showError('AI error: '+e.message);
+    console.error(e);
+  }finally{
+    planBtn.disabled=false;
+    planBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="white"/></svg> Plan My Day with AI';
+    loadingBar.classList.remove('active');
+  }
 });
+
 function saveToHistory(input,data){
   const history=JSON.parse(localStorage.getItem('dayvoice_history')||'[]');
   history.unshift({id:Date.now(),date:new Date().toISOString(),input,data});
   if(history.length>30)history.pop();
   localStorage.setItem('dayvoice_history',JSON.stringify(history));
 }
+
 function renderSchedule(data,container){
   const tasks=data.tasks||[];
   const tl=container?document.getElementById('detailTimeline'):timeline;
@@ -220,6 +239,7 @@ function renderSchedule(data,container){
   if(data.tip){const tip=document.createElement('div');tip.className='tip-box';tip.textContent='✦ '+data.tip;tl.appendChild(tip);}
   if(!container){scheduleSection.style.display='block';scheduleSection.scrollIntoView({behavior:'smooth',block:'start'});if(notificationsEnabled)scheduleNotifications(tasks);}
 }
+
 function renderHistoryList(){
   const history=JSON.parse(localStorage.getItem('dayvoice_history')||'[]');
   const historyList=document.getElementById('historyList');
@@ -238,32 +258,36 @@ function renderHistoryList(){
     historyList.appendChild(card);
   });
 }
+
 function showHistoryDetail(item){
   document.getElementById('historyList').style.display='none';
-  const detail=document.getElementById('historyDetail');
-  detail.style.display='block';
+  document.getElementById('historyDetail').style.display='block';
   const d=new Date(item.date);
   document.getElementById('detailTitle').innerHTML='Schedule — <span class="date-badge">'+d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'})+'</span>';
   renderSchedule(item.data,'detail');
 }
+
 function showHistoryList(){document.getElementById('historyDetail').style.display='none';document.getElementById('historyList').style.display='block';}
-function deleteHistory(e,id){e.stopPropagation();const history=JSON.parse(localStorage.getItem('dayvoice_history')||'[]');localStorage.setItem('dayvoice_history',JSON.stringify(history.filter(h=>String(h.id)!==String(id))));renderHistoryList();}
+function deleteHistory(e,id){e.stopPropagation();const h=JSON.parse(localStorage.getItem('dayvoice_history')||'[]');localStorage.setItem('dayvoice_history',JSON.stringify(h.filter(x=>String(x.id)!==String(id))));renderHistoryList();}
+
 notifyBtn.addEventListener('click',async()=>{
-  if(!('Notification' in window)){alert('Your browser does not support notifications.');return;}
+  if(!('Notification' in window)){alert('Notifications not supported in this browser.');return;}
   const perm=await Notification.requestPermission();
-  if(perm==='granted'){notificationsEnabled=true;notifyBtn.classList.add('enabled');notifyBtn.innerHTML='Notifications enabled';new Notification('DayVoice',{body:'You will be notified before each task!'});}
-  else alert('Notifications blocked. Enable in browser settings.');
+  if(perm==='granted'){notificationsEnabled=true;notifyBtn.classList.add('enabled');notifyBtn.innerHTML='Notifications enabled';new Notification('DayVoice',{body:'You will be notified 5 mins before each task!'});}
+  else alert('Notifications blocked. Please enable in browser settings.');
 });
+
 function scheduleNotifications(tasks){
   scheduledNotifs.forEach(t=>clearTimeout(t));scheduledNotifs=[];
   const now=new Date();
   tasks.forEach(task=>{
     const[h,m]=task.time.split(':').map(Number);
     const taskTime=new Date();taskTime.setHours(h,m,0,0);
-    const delay=new Date(taskTime.getTime()-5*60*1000)-now;
-    if(delay>0){const t=setTimeout(()=>new Notification('Starting soon: '+task.name,{body:'Scheduled at '+task.time+' — get ready!'}),delay);scheduledNotifs.push(t);}
+    const delay=taskTime.getTime()-5*60*1000-now.getTime();
+    if(delay>0){const t=setTimeout(()=>new Notification('Starting soon: '+task.name,{body:'At '+task.time+' — get ready!'}),delay);scheduledNotifs.push(t);}
   });
 }
+
 resetBtn.addEventListener('click',()=>{taskInput.value='';scheduleSection.style.display='none';timeline.innerHTML='';summaryRow.innerHTML='';window.scrollTo({top:0,behavior:'smooth'});});
 function showError(msg){errorMsg.textContent=msg;errorMsg.classList.add('visible');}
 function hideError(){errorMsg.classList.remove('visible');}
